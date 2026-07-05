@@ -1,13 +1,13 @@
 # pareta
 
 [![npm](https://img.shields.io/npm/v/pareta)](https://www.npmjs.com/package/pareta)
-[![types](https://img.shields.io/npm/types/pareta)](https://www.npmjs.com/package/pareta)
-[![license](https://img.shields.io/npm/l/pareta)](https://github.com/Pareta-AI/pareta-js/blob/main/LICENSE)
+[![License](https://img.shields.io/npm/l/pareta)](https://github.com/Pareta-AI/pareta-js/blob/main/LICENSE)
 
-TypeScript/JavaScript client for [Pareta](https://pareta.ai) — deploy
-open-weights endpoints, run metered inference, browse the benchmark catalog, and
-evaluate models on your own data. The mirror of the Python [`pareta`](https://pypi.org/project/pareta/)
-package, re-expressed as one Promise-only client.
+TypeScript/JavaScript client for [Pareta](https://pareta.ai). One model id —
+`"auto"` — and Pareta plans each request, routes it to benchmark-proven open
+specialists, verifies the result, and falls back to a frontier model when
+that's the right call. One request, one bill; you never pay for Pareta's
+orchestration or cold starts.
 
 ```bash
 npm install pareta        # or: pnpm add pareta / yarn add pareta / bun add pareta
@@ -16,93 +16,93 @@ npm install pareta        # or: pnpm add pareta / yarn add pareta / bun add pare
 ```ts
 import { Pareta } from "pareta";
 
-const pa = Pareta.fromEnv(); // reads PARETA_API_KEY (+ optional PARETA_BASE_URL)
+const pa = Pareta.fromEnv();                 // reads PARETA_API_KEY
+// or: new Pareta({ apiKey: "pareta_sk_…", baseURL: "https://api.pareta.ai" })
 
 const res = await pa.chat.completions.create({
-  model: "ep_…", // an endpoint id from endpoints.deploy(...)
-  messages: [{ role: "user", content: "Extract the totals from this invoice." }],
+  model: "auto",                             // the routing brain — the product
+  messages: [{ role: "user", content: "Extract the total from this invoice: …" }],
 });
 console.log(res.choices[0].message.content);
+
+// Streaming (progress while Pareta plans + executes, then tokens)
+for await (const chunk of await pa.chat.completions.create({
+  model: "auto", messages: [...], stream: true,
+})) {
+  process.stdout.write(chunk.choices[0]?.delta?.content ?? "");
+}
 ```
 
-Inference is OpenAI-compatible, so you can equally point the `openai` SDK at
-`baseURL` + your `pareta_sk_` key. The SDK's unique value is the control plane —
-**deploy**, **eval**, and **discovery**.
+## Is it actually good? Measure it on YOUR data
 
-## Authenticate
-
-Every request uses a `pareta_sk_` secret key (mint one in the
-[dashboard](https://pareta.ai) — key management is browser-only). Put it in the
-environment and use `fromEnv()`, or pass it explicitly:
+Don't take the routing brain on faith — benchmark it. `pa.evals` runs `"auto"`
+head-to-head against frontier models on your own ground truth and prices every
+contender honestly:
 
 ```ts
-const pa = new Pareta({ apiKey: "pareta_sk_…" });
+const set = await pa.evals.sets.create({ task: "invoice-extraction", items: [...] });
+const run = await pa.evals.runs.create({
+  evalSet: set.id, models: ["auto"], frontier: ["claude-opus-4-7"], wait: true,
+});
 ```
 
-## Deploy → infer
+And watch what your live traffic is doing — spend, success rate, and the
+projected savings vs calling a frontier directly:
 
 ```ts
-// Pareta picks the GPU/serving class; model defaults to the task's best pick.
-const ep = await pa.endpoints.deploy({ task: "invoice-extraction", wait: true });
-
-const res = await pa.chat.completions.create({
-  model: ep.id!,
+await pa.auto.metrics();                     // requests, success, spend, savings
+await pa.auto.compareFrontier({              // one prompt, metered, side-by-side
+  model: "gpt-5.5",
   messages: [{ role: "user", content: "…" }],
 });
 ```
 
-Stream tokens:
+## Inference is OpenAI-compatible
+
+You don't even need this SDK to call Pareta — point the `openai` package at
+`baseURL` + your key and set `model: "auto"`:
 
 ```ts
-for await (const chunk of pa.chat.completions.create({ model: ep.id!, messages, stream: true })) {
-  process.stdout.write(chunk.choices[0]?.delta.content ?? "");
-}
+import OpenAI from "openai";
+const client = new OpenAI({ apiKey: "pareta_sk_…", baseURL: "https://api.pareta.ai/v1" });
+const res = await client.chat.completions.create({ model: "auto", messages: [...] });
 ```
 
-## Discover the best model for a task
+This SDK's unique value is everything AROUND that call — evals on your data,
+auto metrics, the benchmark catalog, and the dedicated-endpoint control plane.
+
+## Dedicated endpoints (when you want to pin one model)
+
+`"auto"` routes per request. When a workload wants one specific open model on
+dedicated capacity, deploy it and call it by endpoint id:
 
 ```ts
-const lb = await pa.tasks.leaderboard("invoice-extraction");
-console.log(lb.recommended, lb.frontier?.name); // open pick + frontier baseline
+const ep = await pa.endpoints.deploy({ task: "invoice-extraction", model: "recommended", wait: true });
+const res = await pa.chat.completions.create({ model: ep.id, messages: [...] });
+
+for (const m of await pa.models.list()) console.log(m.id);
 ```
 
-## Evaluate on your own data
+Discovery (`pa.tasks.match`, `pa.tasks.leaderboard`) tells you which open
+models are benchmark-proven for your task and what the frontier baseline costs.
 
-```ts
-const run = await pa.evals.runs.create({
-  task: "intent-classification",
-  items: [{ input: { text: "cancel my plan" }, expected: "cancellation" }],
-  models: ["qwen-1"],
-  frontier: "benchmarked", // also race the benchmarked frontier models
-  wait: true,
-});
-console.log(run.cost, run.results.map((r) => [r.modelId, r.qualityMean]));
-```
+## Auth
 
-Eval runs are metered against your org balance; `run.cost` is the billed total
-in dollars (floored to cents).
+Mint a `pareta_sk_` key in the dashboard (key management is browser-only) and
+pass it as `apiKey` or via `PARETA_API_KEY`. The SDK only ever *consumes* a
+key; it never creates, lists, or revokes them.
 
 ## Errors
 
-Status codes map to typed errors you can branch on:
+All errors subclass `ParetaError` — `AuthenticationError` (401),
+`InsufficientCreditsError` (402), `NotFoundError` (404),
+`EndpointNotReadyError` (503), `RateLimitError` (429, auto-retried),
+`BadRequestError` (400/422), and `APIConnectionError` / `APITimeoutError`
+(transport, auto-retried). Idempotent GETs and 429/5xx/timeouts are retried
+with exponential backoff (`maxRetries`, default 2).
 
-```ts
-import { InsufficientCreditsError, EndpointNotReadyError } from "pareta";
+## Python
 
-try {
-  await pa.chat.completions.create({ model, messages });
-} catch (e) {
-  if (e instanceof InsufficientCreditsError) { /* top up in the dashboard */ }
-  if (e instanceof EndpointNotReadyError) { /* endpoint is cold/stopped */ }
-}
-```
-
-## Runtime
-
-Node 18+, modern browsers, and edge runtimes (Workers / Vercel Edge) — built on
-native `fetch` / `ReadableStream` / `FormData`, **zero runtime dependencies**.
-Ships ESM + CommonJS + `.d.ts`.
-
-## Docs
-
-Full guide, reference, and examples: **[docs.pareta.ai](https://docs.pareta.ai)**.
+The same surface ships as a Python package: [`pip install pareta`](https://pypi.org/project/pareta/),
+plus a CLI (`pareta[cli]`) and an MCP server (`pareta[mcp]`). Docs for both:
+[docs.pareta.ai](https://docs.pareta.ai).

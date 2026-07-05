@@ -1,19 +1,21 @@
 /**
  * Pareta — TypeScript/JavaScript client.
  *
- * Deploy open-weights endpoints, run metered inference, browse the benchmark
- * catalog, and eval models on your own data.
+ * One model id — "auto" — and Pareta plans each request, routes it to
+ * benchmark-proven open specialists, verifies, and falls back to a frontier
+ * model when that's the right call. One request, one bill.
  *
  *   import { Pareta } from "pareta";
  *   const pa = Pareta.fromEnv();                 // PARETA_API_KEY
  *   const res = await pa.chat.completions.create({
- *     model: "ep_…",
+ *     model: "auto",
  *     messages: [{ role: "user", content: "hi" }],
  *   });
  *
  * Inference is OpenAI-compatible, so you can equally point the `openai` SDK at
- * `baseURL` + your `pareta_sk_` key. The SDK's unique value is the control plane
- * (deploy / eval / discovery).
+ * `baseURL` + your `pareta_sk_` key with model "auto". The SDK's unique value
+ * is everything around that call: evals on your own data, auto metrics,
+ * discovery, and the dedicated-endpoint control plane.
  */
 
 export { Pareta } from "./client.js";
@@ -54,6 +56,7 @@ export {
   EvalSet,
   EvalRun,
   EvalResult,
+  EvalItemResult,
   Leaderboard,
   LeaderboardEntry,
   FrontierModel,

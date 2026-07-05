@@ -89,6 +89,16 @@ export class Endpoint extends BaseModel {
   get task(): string | null { return this.raw.taskName ?? this.raw.task ?? null; }
   get url(): string | null { return this.raw.url ?? null; }
   get isLive(): boolean { return this.raw.status === "live"; }
+  /** Structured-extraction endpoints (contract / SEC / ICD …): the system prompt
+   *  the benchmark used. The proxy applies it automatically when you send no
+   *  `system` message (so quality matches the leaderboard by default); returned
+   *  here so you can read it, or override it with your own `system` message.
+   *  `null` when the task has no injectable prompt (see `promptScaffold`). */
+  get recommendedSystemPrompt(): string | null { return this.raw.recommendedSystemPrompt ?? null; }
+  /** Fixed-label classification endpoints: a copy-and-customize `system` prompt
+   *  template. NEVER auto-applied — the categories are yours, not the benchmark's
+   *  — so fill them in and send it as your `system` message. `null` otherwise. */
+  get promptScaffold(): string | null { return this.raw.promptScaffold ?? null; }
 }
 
 /** GET /v1/endpoints returns a BARE JSON array. */
@@ -147,6 +157,18 @@ export function evalSetList(raw: unknown): EvalSet[] {
 }
 
 /**
+ * One scored item inside `EvalResult.perItem`. `prediction` is the model's raw
+ * output, truncated server-side — present only on items that reached scoring
+ * (not pool/build errors), there to debug a 0.0 `score` without re-running.
+ */
+export class EvalItemResult extends BaseModel {
+  get idx(): number | null { return this.raw.idx ?? null; }
+  get score(): number | null { return this.raw.score ?? null; }
+  get prediction(): string | null { return this.raw.prediction ?? null; }
+  get error(): string | null { return this.raw.error ?? null; }
+}
+
+/**
  * One model's aggregate on an eval run. `modelId` is the per-task public alias;
  * `kind` ('open' | 'frontier') is populated by the Slice-4 result schema.
  */
@@ -160,6 +182,10 @@ export class EvalResult extends BaseModel {
   get meanCostMicroUsd(): number | null { return this.raw.mean_cost_micro_usd ?? null; }
   get nSucceeded(): number | null { return this.raw.n_succeeded ?? null; }
   get errorCount(): number | null { return this.raw.error_count ?? null; }
+  /** Per-item rows (idx/score/prediction/error); empty when not persisted. */
+  get perItem(): EvalItemResult[] {
+    return (this.raw.per_item ?? []).map((it: Raw) => new EvalItemResult(it));
+  }
 }
 
 export class LeaderboardEntry extends BaseModel {

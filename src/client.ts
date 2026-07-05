@@ -19,6 +19,7 @@ import { Models } from "./resources/models.js";
 import { Endpoints } from "./resources/endpoints.js";
 import { Tasks } from "./resources/tasks.js";
 import { Evals } from "./resources/evals.js";
+import { Auto } from "./resources/auto.js";
 
 export const DEFAULT_BASE_URL = "https://api.pareta.ai";
 export const DEFAULT_TIMEOUT_MS = 60_000;
@@ -89,6 +90,7 @@ export class Pareta implements Transport {
   readonly endpoints: Endpoints;
   readonly tasks: Tasks;
   readonly evals: Evals;
+  readonly auto: Auto;
 
   constructor(options: ParetaOptions = {}) {
     if (!options.apiKey) {
@@ -114,6 +116,7 @@ export class Pareta implements Transport {
     this.endpoints = new Endpoints(this);
     this.tasks = new Tasks(this);
     this.evals = new Evals(this);
+    this.auto = new Auto(this);
   }
 
   /** Build from PARETA_API_KEY (+ optional PARETA_BASE_URL); explicit opts win. */

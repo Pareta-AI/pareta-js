@@ -107,6 +107,26 @@ describe("endpoints lifecycle", () => {
     expect(ep.model).toBe("kie-1");
   });
 
+  it("surfaces recommendedSystemPrompt + promptScaffold (null when absent)", async () => {
+    const rows: Record<string, any> = {
+      "ep-x": { id: "ep-x", status: "live", taskName: "icd-coding",
+                recommendedSystemPrompt: "You are an expert inpatient medical coder.", promptScaffold: null },
+      "ep-c": { id: "ep-c", status: "live", taskName: "intent-classification",
+                recommendedSystemPrompt: null, promptScaffold: "This endpoint classifies text, but the categories are YOURS" },
+      "ep-p": { id: "ep-p", status: "live" },
+    };
+    const pa = makeClient((url) => jsonResponse(200, rows[new URL(url).pathname.split("/").pop()!]));
+    const x = await pa.endpoints.retrieve("ep-x");
+    expect(x.recommendedSystemPrompt).toMatch(/^You are an expert/);
+    expect(x.promptScaffold).toBeNull();
+    const c = await pa.endpoints.retrieve("ep-c");
+    expect(c.promptScaffold).toMatch(/^This endpoint classifies/);
+    expect(c.recommendedSystemPrompt).toBeNull();
+    const p = await pa.endpoints.retrieve("ep-p");
+    expect(p.recommendedSystemPrompt).toBeNull();
+    expect(p.promptScaffold).toBeNull();
+  });
+
   it("delete returns void on a 204", async () => {
     const pa = makeClient((url, init) => {
       expect(init.method).toBe("DELETE");

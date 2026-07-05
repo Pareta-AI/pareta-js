@@ -88,7 +88,11 @@ describe("eval runs", () => {
           candidate_model_ids: ["qwen-1", "claude-opus-4-7"],
           total_cost_micro_usd: 1_234_567,
         },
-        results: [{ model_id: "qwen-1", kind: "open", quality_mean: 0.91, n_succeeded: 5, error_count: 0 }],
+        results: [{
+          model_id: "qwen-1", kind: "open", quality_mean: 0.91, n_succeeded: 5, error_count: 0,
+          per_item: [{ idx: 0, score: 0.0, prediction: "the model said this" },
+                     { idx: 1, score: 1.0, prediction: "ok" }],
+        }],
       });
     });
     const run = await pa.evals.runs.create({
@@ -104,6 +108,11 @@ describe("eval runs", () => {
     expect(run.costMicroUsd).toBe(1_234_567);
     expect(run.results[0]!.modelId).toBe("qwen-1");
     expect(run.results[0]!.qualityMean).toBe(0.91);
+    // per_item carries the raw prediction so a 0.0 score is debuggable
+    const items = run.results[0]!.perItem;
+    expect(items[0]!.idx).toBe(0);
+    expect(items[0]!.score).toBe(0.0);
+    expect(items[0]!.prediction).toBe("the model said this");
   });
 
   it("create from items auto-creates the eval set", async () => {
