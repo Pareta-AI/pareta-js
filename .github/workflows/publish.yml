@@ -39,4 +39,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npm publish --provenance --access public
+      # Trusted Publishing attaches provenance automatically; an explicit
+      # --provenance flag conflicts with the OIDC-minted certificate
+      # (E422 "Missing SourceRepositoryRef in signing certificate").
+      - run: npm publish --access public
