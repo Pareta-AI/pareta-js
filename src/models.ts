@@ -193,3 +193,42 @@ export class EvalRun extends BaseModel {
     return (this.raw.results ?? []).map((r: Raw) => new EvalResult(r));
   }
 }
+
+// ── retrieval (rerank + embeddings) ────────────────────────────────────
+
+/** One row of `Rerank.results` — a document's position + calibrated score. */
+export class RerankResult extends BaseModel {
+  /** Position of this document in YOUR request's documents array. */
+  get index(): number { return Number(this.raw.index ?? -1); }
+  /** Calibrated P(relevant) in (0, 1) — thresholdable, not just ordinal. */
+  get relevanceScore(): number { return Number(this.raw.relevance_score ?? 0); }
+}
+
+/** Result of `pa.rerank(...)`: `.results` ordered most-relevant-first;
+ * `.pairs` is the number of documents scored (the metered unit). */
+export class Rerank extends BaseModel {
+  get results(): RerankResult[] {
+    return (this.raw.results ?? []).map((r: Raw) => new RerankResult(r));
+  }
+  get model(): string | null { return this.raw.model ?? null; }
+  get pairs(): number | null { return this.raw.pairs ?? null; }
+  /** Map the ranked indices back onto the documents you sent — best first. */
+  topDocuments(documents: string[]): string[] {
+    return this.results
+      .filter((r) => r.index >= 0 && r.index < documents.length)
+      .map((r) => documents[r.index]!);
+  }
+}
+
+/** Result of `pa.embeddings(...)`: unit-normalized vectors in input order
+ * (cosine similarity is a plain dot product); `.promptTokens` is metered. */
+export class Embeddings extends BaseModel {
+  get vectors(): number[][] {
+    const rows = [...((this.raw.data ?? []) as Raw[])];
+    rows.sort((a, b) => Number(a.index ?? 0) - Number(b.index ?? 0));
+    return rows.map((r) => (r.embedding as number[]) ?? []);
+  }
+  get model(): string | null { return this.raw.model ?? null; }
+  get promptTokens(): number | null { return this.raw.usage?.prompt_tokens ?? null; }
+  get length(): number { return ((this.raw.data ?? []) as Raw[]).length; }
+}

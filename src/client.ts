@@ -19,6 +19,8 @@ import { Models } from "./resources/models.js";
 import { Tasks } from "./resources/tasks.js";
 import { Evals } from "./resources/evals.js";
 import { Auto } from "./resources/auto.js";
+import { makeEmbeddings, makeRerank } from "./resources/retrieval.js";
+import type { EmbeddingsFn, RerankFn } from "./resources/retrieval.js";
 
 export const DEFAULT_BASE_URL = "https://api.pareta.ai";
 /** #174: uuid-ish token for Idempotency-Key (crypto.randomUUID when available). */
@@ -102,6 +104,10 @@ export class Pareta implements Transport {
   readonly tasks: Tasks;
   readonly evals: Evals;
   readonly auto: Auto;
+  /** Document reranking (the Retrieval precision lane) — `pa.rerank(query, docs, {topN})`. */
+  readonly rerank: RerankFn;
+  /** Text embeddings (the Retrieval recall lane) — `pa.embeddings(input, {inputType})`. */
+  readonly embeddings: EmbeddingsFn;
 
   constructor(options: ParetaOptions = {}) {
     if (!options.apiKey) {
@@ -127,6 +133,8 @@ export class Pareta implements Transport {
     this.tasks = new Tasks(this);
     this.evals = new Evals(this);
     this.auto = new Auto(this);
+    this.rerank = makeRerank(this);
+    this.embeddings = makeEmbeddings(this);
   }
 
   /** Build from PARETA_API_KEY (+ optional PARETA_BASE_URL); explicit opts win. */

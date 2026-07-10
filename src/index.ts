@@ -58,9 +58,13 @@ export {
   EvalResult,
   EvalItemResult,
   FrontierModel,
+  Rerank,
+  RerankResult,
+  Embeddings,
 } from "./models.js";
 
 // request param types + resource helpers
 export type { ChatMessage, ChatCompletionCreateParams } from "./resources/chat.js";
 export type { EvalRunCreateParams, FrontierSpec, FileInput } from "./resources/evals.js";
 export { EvalSets, EvalRuns } from "./resources/evals.js";
+export type { RerankFn, RerankOptions, EmbeddingsFn, EmbeddingsOptions } from "./resources/retrieval.js";

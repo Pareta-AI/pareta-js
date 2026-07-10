@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 — 2026-07-10
+
+The Retrieval capability lanes — the standard RAG stack on Pareta (parity
+with the Python SDK 1.1.0):
+
+- **`pa.rerank(query, documents, { topN })`** — document reranking via
+  `POST /v1/rerank`. Ordered `RerankResult` rows (`.index`,
+  `.relevanceScore` — calibrated P(relevant), thresholdable);
+  `.topDocuments(docs)` maps ranked indices back onto your array. Served by
+  `pareta-rerank-1`; metered per document scored.
+- **`pa.embeddings(input, { inputType })`** — text embeddings via
+  `POST /v1/embeddings`. Unit-normalized 1024-dim vectors, input order
+  preserved; `inputType: "query"` embeds retrieval queries asymmetrically.
+  Served by `bge-1`; metered per input token ($0.01 / 1M).
+- New response models `Rerank`, `RerankResult`, `Embeddings`.
+
 ## 1.0.0 — 2026-07-08
 
 - Every POST now carries an `Idempotency-Key` header, generated once per
