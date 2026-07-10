@@ -8,7 +8,7 @@
  *   POST /v1/embeddings  {input[], input_type?}       -> unit-normalized vectors
  *
  * Rerank is metered per document scored; embeddings per input token. You never
- * pick a serving model — Pareta resolves the lane (`pareta-rerank-1` / `bge-1`),
+ * pick a serving model — Pareta resolves the lane (`pareta-rerank-1` / `qwen-embed-1`),
  * exactly as `model:"auto"` does for chat.
  *
  * Exposed as callable client fields (`pa.rerank(...)`) rather than resource

@@ -1,6 +1,8 @@
 /**
- * `client.tasks` — browse the benchmark catalog and match free-text intent to
- * a task (`match` is the discovery surface: it tells you what Pareta can do).
+ * `client.tasks` — the grading-contract directory for evals. A task names how
+ * a dataset is scored (row shape + scorer); inference never takes one. `match`
+ * maps a plain-English description of your dataset to the contract that
+ * grades it — feed the matched task id into `evals.runs.create(task=...)`.
  */
 
 import type { Transport } from "../client.js";
