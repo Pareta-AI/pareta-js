@@ -7,9 +7,9 @@
  * the SDK never overstates a charge — a 5 µUSD run reads "0.00". Flooring is
  * done in integer (BigInt) math, never float dollars, to avoid fp drift.
  *
- * Only `run.cost` floors. Sub-cent unit rates (EvalResult.meanCostMicroUsd,
- * LeaderboardEntry.costPerRequestMicroUsd) stay raw integers — flooring them to
- * "$0.00" would erase the open-vs-frontier savings comparison.
+ * Only `run.cost` floors. Sub-cent unit rates (EvalResult.meanCostMicroUsd)
+ * stay raw integers — flooring them to "$0.00" would erase the
+ * open-vs-frontier savings comparison.
  */
 
 const MICRO_PER_CENT = 10_000n;

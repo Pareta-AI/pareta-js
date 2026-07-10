@@ -1,7 +1,7 @@
 {
   "name": "pareta",
-  "version": "0.2.1",
-  "description": "TypeScript/JavaScript client for Pareta — deploy open-weights endpoints, run metered inference, and evaluate models on your own data.",
+  "version": "1.0.0",
+  "description": "TypeScript/JavaScript client for Pareta — chat against model \"auto\", benchmark it on your own data, and watch the savings.",
   "license": "Apache-2.0",
   "author": "Pareta",
   "homepage": "https://docs.pareta.ai",

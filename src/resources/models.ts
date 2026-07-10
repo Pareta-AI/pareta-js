@@ -1,8 +1,7 @@
 /**
- * `client.models` — list the deployed models (endpoints) your org can call.
- *
- * OpenAI-compatible: only deployed, url-bearing endpoints appear. Each
- * `Model.id` is an endpoint id usable as `chat.completions.create({ model })`.
+ * `client.models` — the OpenAI-compatible `/v1/models` list of model ids your
+ * org can call. Each `Model.id` is usable as
+ * `chat.completions.create({ model })`.
  */
 
 import type { Transport } from "../client.js";

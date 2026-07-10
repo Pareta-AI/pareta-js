@@ -69,22 +69,11 @@ const res = await client.chat.completions.create({ model: "auto", messages: [...
 ```
 
 This SDK's unique value is everything AROUND that call — evals on your data,
-auto metrics, the benchmark catalog, and the dedicated-endpoint control plane.
+auto metrics, and the benchmark catalog.
 
-## Dedicated endpoints (when you want to pin one model)
-
-`"auto"` routes per request. When a workload wants one specific open model on
-dedicated capacity, deploy it and call it by endpoint id:
-
-```ts
-const ep = await pa.endpoints.deploy({ task: "invoice-extraction", model: "recommended", wait: true });
-const res = await pa.chat.completions.create({ model: ep.id, messages: [...] });
-
-for (const m of await pa.models.list()) console.log(m.id);
-```
-
-Discovery (`pa.tasks.match`, `pa.tasks.leaderboard`) tells you which open
-models are benchmark-proven for your task and what the frontier baseline costs.
+Discovery (`pa.tasks.match`) tells you whether Pareta has a benchmark-proven
+specialist lane for your workload — describe the task in free text and get
+ranked matching tasks back.
 
 ## Auth
 

@@ -155,3 +155,55 @@ describe("streaming retry semantics", () => {
     expect(n).toBe(3); // initial + 2 retries
   });
 });
+
+// ─── #174: Idempotency-Key — one logical request, one server-side debit ─
+
+const okCompletion = () =>
+  jsonResponse(200, {
+    id: "c",
+    object: "chat.completion",
+    choices: [{ index: 0, message: { role: "assistant", content: "x" }, finish_reason: "stop" }],
+  });
+
+function headerOf(init: RequestInit, name: string): string | undefined {
+  const h = (init.headers ?? {}) as Record<string, string>;
+  return h[name];
+}
+
+describe("#174 idempotency key", () => {
+  it("POST carries a stable Idempotency-Key across auto-retries", async () => {
+    const seen: Array<string | undefined> = [];
+    const pa = makeClient((_url, init) => {
+      seen.push(headerOf(init, "Idempotency-Key"));
+      return seen.length < 3 ? jsonResponse(500, { detail: "boom" }) : okCompletion();
+    }, { maxRetries: 3 });
+    await pa.chat.completions.create({ model: "auto", messages: userMsg });
+    expect(seen).toHaveLength(3);
+    for (const k of seen) expect(k).toMatch(/^pareta-js-/);
+    expect(new Set(seen).size).toBe(1); // SAME key on every attempt
+  });
+
+  it("separate logical calls get separate keys", async () => {
+    const seen: Array<string | undefined> = [];
+    const pa = makeClient((_url, init) => {
+      seen.push(headerOf(init, "Idempotency-Key"));
+      return okCompletion();
+    }, { maxRetries: 0 });
+    await pa.chat.completions.create({ model: "auto", messages: userMsg });
+    await pa.chat.completions.create({ model: "auto", messages: userMsg });
+    expect(new Set(seen).size).toBe(2);
+  });
+
+  it("GET requests carry no Idempotency-Key", async () => {
+    const pa = makeClient((_url, init) => {
+      expect(headerOf(init, "Idempotency-Key")).toBeUndefined();
+      return jsonResponse(200, { object: "list", data: [] });
+    }, { maxRetries: 0 });
+    await pa.models.list();
+  });
+
+  it("default timeout is 600s (#174 long-doc)", async () => {
+    const { DEFAULT_TIMEOUT_MS } = await import("../src/client.js");
+    expect(DEFAULT_TIMEOUT_MS).toBe(600_000);
+  });
+});

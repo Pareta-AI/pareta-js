@@ -59,7 +59,7 @@ describe("request headers + path", () => {
 
   it("returns {} (not a throw) on an empty 2xx body (204-style)", async () => {
     const pa = makeClient(() => new Response(null, { status: 204 }));
-    const out = await pa.request("DELETE", "/v1/endpoints/ep");
+    const out = await pa.request("DELETE", "/v1/eval-sets/es");
     expect(out).toEqual({});
   });
 });

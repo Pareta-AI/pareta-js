@@ -14,8 +14,9 @@
  *
  * Inference is OpenAI-compatible, so you can equally point the `openai` SDK at
  * `baseURL` + your `pareta_sk_` key with model "auto". The SDK's unique value
- * is everything around that call: evals on your own data, auto metrics,
- * discovery, and the dedicated-endpoint control plane.
+ * is everything around that call: evals on your own data (benchmark "auto"
+ * against frontier models), auto metrics, and `tasks.match` for discovering
+ * what Pareta can do.
  */
 
 export { Pareta } from "./client.js";
@@ -49,7 +50,6 @@ export {
   ChatCompletionChunk,
   Model,
   ModelList,
-  Endpoint,
   Task,
   TaskMatch,
   TaskMatchCandidate,
@@ -57,14 +57,10 @@ export {
   EvalRun,
   EvalResult,
   EvalItemResult,
-  Leaderboard,
-  LeaderboardEntry,
   FrontierModel,
 } from "./models.js";
 
 // request param types + resource helpers
 export type { ChatMessage, ChatCompletionCreateParams } from "./resources/chat.js";
-export type { DeployParams } from "./resources/endpoints.js";
-export { EndpointMetrics } from "./resources/endpoints.js";
 export type { EvalRunCreateParams, FrontierSpec, FileInput } from "./resources/evals.js";
 export { EvalSets, EvalRuns } from "./resources/evals.js";

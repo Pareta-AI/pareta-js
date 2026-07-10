@@ -16,18 +16,30 @@ import { parseSSE, type SSEEvent } from "./streaming.js";
 import { VERSION } from "./version.js";
 import { Chat } from "./resources/chat.js";
 import { Models } from "./resources/models.js";
-import { Endpoints } from "./resources/endpoints.js";
 import { Tasks } from "./resources/tasks.js";
 import { Evals } from "./resources/evals.js";
 import { Auto } from "./resources/auto.js";
 
 export const DEFAULT_BASE_URL = "https://api.pareta.ai";
-export const DEFAULT_TIMEOUT_MS = 60_000;
+/** #174: uuid-ish token for Idempotency-Key (crypto.randomUUID when available). */
+function randomKey(): string {
+  try {
+    return (globalThis.crypto as { randomUUID?: () => string })?.randomUUID?.().replace(/-/g, "")
+      ?? Math.random().toString(36).slice(2) + Date.now().toString(36);
+  } catch {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+}
+
+// #174: long-doc auto requests legitimately run 60-180s server-side. A 60s
+// timeout made the SDK kill + retry them mid-flight; 600s matches the OpenAI
+// SDK default and the proxy's own upstream client.
+export const DEFAULT_TIMEOUT_MS = 600_000;
 export const DEFAULT_MAX_RETRIES = 2;
 
-// 409 here is the transient lock/contention class; Pareta's own 409 (seed/legacy
-// endpoint) is a stable 4xx that just exhausts retries and still raises
-// ConflictError, so callers see the right error either way.
+// 409 here is the transient lock/contention class; Pareta's own stable-4xx 409
+// (resource conflict) just exhausts retries and still raises ConflictError, so
+// callers see the right error either way.
 const RETRY_STATUSES = new Set([408, 409, 429, 500, 502, 503, 504]);
 
 type FetchFn = typeof globalThis.fetch;
@@ -87,7 +99,6 @@ export class Pareta implements Transport {
   // Resource namespaces (assigned in the constructor; filled in slice by slice).
   readonly chat: Chat;
   readonly models: Models;
-  readonly endpoints: Endpoints;
   readonly tasks: Tasks;
   readonly evals: Evals;
   readonly auto: Auto;
@@ -113,7 +124,6 @@ export class Pareta implements Transport {
     // runtime), so these static imports create no runtime circular dependency.
     this.chat = new Chat(this);
     this.models = new Models(this);
-    this.endpoints = new Endpoints(this);
     this.tasks = new Tasks(this);
     this.evals = new Evals(this);
     this.auto = new Auto(this);
@@ -222,6 +232,12 @@ export class Pareta implements Transport {
     const url = this.buildURL(path, params);
     const isMultipart = files != null || data != null;
     const headers = this.headers({ jsonBody: body != null && !isMultipart });
+    // #174: ONE idempotency key per logical call, resent verbatim on every
+    // auto-retry — the server collapses all attempts onto a single ledger
+    // debit (a long-doc request can outlive a client timeout yet complete).
+    if (method.toUpperCase() === "POST" && !headers["Idempotency-Key"]) {
+      headers["Idempotency-Key"] = `pareta-js-${randomKey()}`;
+    }
     let payload: BodyInit | undefined;
     if (isMultipart) {
       payload = this.buildFormData(files, data);
@@ -265,12 +281,16 @@ export class Pareta implements Transport {
   /**
    * Yield parsed SSE objects. Retries ONLY the initial connect/handshake — once
    * bytes are flowing a mid-stream drop raises (re-issuing would re-run a
-   * metered generation / re-trigger a deploy). `events:true` → `{event,data}`.
+   * metered generation). `events:true` → `{event,data}`.
    */
   async *stream<T = unknown>(method: string, path: string, opts: StreamOptions = {}): AsyncGenerator<T> {
     const { body, params, cast, events } = opts;
     const url = this.buildURL(path, params);
     const headers = this.headers({ stream: true, jsonBody: body != null });
+    // #174: stable key across handshake retries (see request()).
+    if (method.toUpperCase() === "POST" && !headers["Idempotency-Key"]) {
+      headers["Idempotency-Key"] = `pareta-js-${randomKey()}`;
+    }
     const payload = body != null ? JSON.stringify(body) : undefined;
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {

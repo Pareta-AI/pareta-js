@@ -11,7 +11,7 @@
  *   402 → InsufficientCreditsError ("organization is out of credit…")
  *   403 → PermissionDeniedError
  *   404 → NotFoundError
- *   409 → ConflictError            (seed/legacy endpoint not deployed)
+ *   409 → ConflictError            (resource conflict / not servable)
  *   422 → BadRequestError          (FastAPI validation; `detail` is an array)
  *   429 → RateLimitError
  *   503 → EndpointNotReadyError    (stopped / cold / provider down)

@@ -5,9 +5,8 @@
  * typed layer.
  *
  * Alias / D3 boundary (a BACKEND contract, the SDK adds no alias logic):
- * `Endpoint.model`, `EvalResult.modelId`, leaderboard names and
- * `run.candidateModels` are per-task PUBLIC aliases — real open-weights ids
- * never cross. Frontier (vendor) ids are in the clear.
+ * `EvalResult.modelId` and `run.candidateModels` are per-task PUBLIC aliases —
+ * real open-weights ids never cross. Frontier (vendor) ids are in the clear.
  */
 
 import { dollarsFlooredToCents } from "./money.js";
@@ -74,36 +73,6 @@ export class ModelList extends BaseModel implements Iterable<Model> {
   get data(): Model[] { return (this.raw.data ?? []).map((m: Raw) => new Model(m)); }
   get length(): number { return (this.raw.data ?? []).length; }
   [Symbol.iterator](): Iterator<Model> { return this.data[Symbol.iterator](); }
-}
-
-/**
- * A deployed endpoint. `id` (== name) is what you pass to
- * `chat.completions.create({ model })`. `model` is the per-task public alias.
- */
-export class Endpoint extends BaseModel {
-  get id(): string | null { return this.raw.id ?? this.raw.name ?? null; }
-  get name(): string | null { return this.raw.name ?? null; }
-  get model(): string | null { return this.raw.model ?? null; }
-  get status(): string | null { return this.raw.status ?? null; }
-  // Live list sends camelCase `taskName`; the detail record sends `task`.
-  get task(): string | null { return this.raw.taskName ?? this.raw.task ?? null; }
-  get url(): string | null { return this.raw.url ?? null; }
-  get isLive(): boolean { return this.raw.status === "live"; }
-  /** Structured-extraction endpoints (contract / SEC / ICD …): the system prompt
-   *  the benchmark used. The proxy applies it automatically when you send no
-   *  `system` message (so quality matches the leaderboard by default); returned
-   *  here so you can read it, or override it with your own `system` message.
-   *  `null` when the task has no injectable prompt (see `promptScaffold`). */
-  get recommendedSystemPrompt(): string | null { return this.raw.recommendedSystemPrompt ?? null; }
-  /** Fixed-label classification endpoints: a copy-and-customize `system` prompt
-   *  template. NEVER auto-applied — the categories are yours, not the benchmark's
-   *  — so fill them in and send it as your `system` message. `null` otherwise. */
-  get promptScaffold(): string | null { return this.raw.promptScaffold ?? null; }
-}
-
-/** GET /v1/endpoints returns a BARE JSON array. */
-export function endpointList(raw: unknown): Endpoint[] {
-  return ((raw as Raw[]) ?? []).map((e) => new Endpoint(e));
 }
 
 // ── tasks ──────────────────────────────────────────────────────────────
@@ -188,42 +157,15 @@ export class EvalResult extends BaseModel {
   }
 }
 
-export class LeaderboardEntry extends BaseModel {
-  get name(): string | null { return this.raw.name ?? null; }
-  get kind(): string | null { return this.raw.kind ?? null; }
-  get quality(): number | null { return this.raw.quality ?? null; }
-  // Raw integer — sub-cent unit rate, NOT floored (see money.ts).
-  get costPerRequestMicroUsd(): number | null { return this.raw.cost_per_request_micro_usd ?? null; }
-  get contextK(): number | null { return this.raw.context_k ?? null; }
-  get runMode(): string | null { return this.raw.run_mode ?? null; }
-}
-
-/** Models ranked for a task. `recommended` is the deployable pick; `frontier` the baseline. */
-export class Leaderboard extends BaseModel {
-  get taskId(): string | null { return this.raw.task_id ?? null; }
-  get metric(): string | null { return this.raw.metric ?? null; }
-  get costUnit(): string | null { return this.raw.cost_unit ?? null; }
-  get recommended(): string | null { return this.raw.recommended ?? null; }
-  get models(): LeaderboardEntry[] {
-    return (this.raw.models ?? []).map((m: Raw) => new LeaderboardEntry(m));
-  }
-  get frontier(): LeaderboardEntry | null {
-    return this.raw.frontier ? new LeaderboardEntry(this.raw.frontier) : null;
-  }
-}
-
 /** A vendor frontier model you can evaluate against (from the eval pool). */
 export class FrontierModel extends BaseModel {
   get id(): string | null { return this.raw.id ?? null; }
   get vendor(): string | null { return this.raw.vendor ?? null; }
   get vision(): boolean { return Boolean(this.raw.vision); }
-  /** Only meaningful when a task was given: it's on that task's leaderboard. */
+  /** Only meaningful when a task was given: it has benchmark results on that task. */
   get benchmarked(): boolean { return Boolean(this.raw.benchmarked); }
 }
 
-export function leaderboardFrom(raw: unknown): Leaderboard {
-  return new Leaderboard((raw as Raw) ?? {});
-}
 export function frontierModels(raw: unknown): FrontierModel[] {
   return (((raw as Raw)?.frontier_models as Raw[]) ?? []).map((m) => new FrontierModel(m));
 }

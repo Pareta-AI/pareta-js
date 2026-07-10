@@ -1,9 +1,9 @@
 /**
  * `client.chat.completions` — OpenAI-compatible chat completions.
  *
- * `model` is an endpoint id from `endpoints.deploy(...)` (or any model id the
- * caller's org can reach). The call is metered: a successful completion debits
- * the org's balance; a zero balance raises `InsufficientCreditsError` (402).
+ * `model` is `"auto"` — Pareta plans, routes, and verifies each request. The
+ * call is metered: a successful completion debits the org's balance; a zero
+ * balance raises `InsufficientCreditsError` (402).
  */
 
 import type { Transport } from "../client.js";
@@ -21,7 +21,7 @@ export interface ChatMessage {
 
 /** Params for `chat.completions.create`. Extra OpenAI params pass through. */
 export interface ChatCompletionCreateParams {
-  /** An endpoint id from `endpoints.deploy(...)`. */
+  /** `"auto"` — Pareta routes the request to the right model. */
   model: string;
   messages: ChatMessage[];
   stream?: boolean;
@@ -31,7 +31,7 @@ export interface ChatCompletionCreateParams {
 
 function buildBody(params: ChatCompletionCreateParams): Record<string, unknown> {
   const { model, messages, stream, ...extra } = params;
-  if (!model) throw new ParetaError("model is required (an endpoint id from endpoints.deploy)");
+  if (!model) throw new ParetaError('model is required (use "auto")');
   if (!messages || messages.length === 0) {
     throw new ParetaError("messages is required and must be non-empty");
   }

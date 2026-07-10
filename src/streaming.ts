@@ -5,11 +5,11 @@
  * Two modes behind one `events` flag, NEVER one parser for both:
  *  - data-only (chat completions): strip `data:`, skip `:`-comments/blanks,
  *    stop on `[DONE]`, JSON-parse, skip unparseable lines.
- *  - named-event (endpoint deploy): track the `event:` line (reset to "message"
- *    on a blank line) and yield `{event, data}` per event.
+ *  - named-event (progress-style backend streams): track the `event:` line
+ *    (reset to "message" on a blank line) and yield `{event, data}` per event.
  *
- * CRITICAL: the deploy stream (sse-starlette) emits CRLF line endings. A naive
- * `split("\n")` would silently drop every deploy event. `iterLines` normalizes
+ * CRITICAL: the backend's named-event streams (sse-starlette) emit CRLF line
+ * endings. A naive `split("\n")` would silently drop every event. `iterLines` normalizes
  * `\r\n` and bare `\r` → `\n` before framing (the frontend was bitten by this
  * at commit 862fab6 — `normalizeSSEBuffer`). We parse incrementally (yield as
  * bytes arrive), improving on the Python async client which buffered all lines.
@@ -66,7 +66,7 @@ export interface SSEEvent {
   data: unknown;
 }
 
-/** Named-event SSE: track `event:` lines, yield `{event, data}` (deploy stream). */
+/** Named-event SSE: track `event:` lines, yield `{event, data}`. */
 export async function* parseNamedEvent(lines: AsyncIterable<string>): AsyncGenerator<SSEEvent> {
   let event = "message";
   for await (const rawLine of lines) {
