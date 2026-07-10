@@ -232,3 +232,44 @@ export class Embeddings extends BaseModel {
   get promptTokens(): number | null { return this.raw.usage?.prompt_tokens ?? null; }
   get length(): number { return ((this.raw.data ?? []) as Raw[]).length; }
 }
+
+// ── audio (ASR + TTS) ──────────────────────────────────────────────────
+
+/** Browser-safe base64 → Uint8Array (Buffer in Node, atob elsewhere). */
+function base64ToBytes(b64: string): Uint8Array {
+  if (typeof Buffer !== "undefined") return new Uint8Array(Buffer.from(b64, "base64"));
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+/** Speech-to-text result from `audio.transcriptions(...)`. `.durationS` is
+ * the metered input audio length (per minute). */
+export class Transcription extends BaseModel {
+  get text(): string | null { return this.raw.text ?? null; }
+  get language(): string | null { return this.raw.language ?? null; }
+  get durationS(): number | null { return this.raw.duration_s ?? null; }
+  toString(): string { return this.text ?? ""; }
+}
+
+/** Text-to-speech result from `audio.speech(...)`. `.audio` is decoded
+ * bytes; `.durationS` is the metered output audio length (per minute). */
+export class Speech extends BaseModel {
+  /** The synthesized audio, base64-decoded to raw bytes. */
+  get audio(): Uint8Array {
+    const b64 = (this.raw.audio_base64 as string) || "";
+    return b64 ? base64ToBytes(b64) : new Uint8Array(0);
+  }
+  get audioBase64(): string | null { return this.raw.audio_base64 ?? null; }
+  get sampleRate(): number | null { return this.raw.sample_rate ?? null; }
+  get durationS(): number | null { return this.raw.duration_s ?? null; }
+  /** Container/codec of the returned audio (e.g. "wav"). */
+  get format(): string | null { return this.raw.format ?? null; }
+  /** Write the decoded audio to `path` (Node only — lazy node:fs). */
+  async save(path: string): Promise<this> {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(path, this.audio);
+    return this;
+  }
+}

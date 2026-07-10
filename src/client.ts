@@ -19,6 +19,7 @@ import { Models } from "./resources/models.js";
 import { Tasks } from "./resources/tasks.js";
 import { Evals } from "./resources/evals.js";
 import { Auto } from "./resources/auto.js";
+import { Audio } from "./resources/audio.js";
 import { makeEmbeddings, makeRerank } from "./resources/retrieval.js";
 import type { EmbeddingsFn, RerankFn } from "./resources/retrieval.js";
 
@@ -104,6 +105,8 @@ export class Pareta implements Transport {
   readonly tasks: Tasks;
   readonly evals: Evals;
   readonly auto: Auto;
+  /** The Speech lanes — `pa.audio.transcriptions(...)` (ASR) + `pa.audio.speech(...)` (TTS). */
+  readonly audio: Audio;
   /** Document reranking (the Retrieval precision lane) — `pa.rerank(query, docs, {topN})`. */
   readonly rerank: RerankFn;
   /** Text embeddings (the Retrieval recall lane) — `pa.embeddings(input, {inputType})`. */
@@ -133,6 +136,7 @@ export class Pareta implements Transport {
     this.tasks = new Tasks(this);
     this.evals = new Evals(this);
     this.auto = new Auto(this);
+    this.audio = new Audio(this);
     this.rerank = makeRerank(this);
     this.embeddings = makeEmbeddings(this);
   }

@@ -61,6 +61,8 @@ export {
   Rerank,
   RerankResult,
   Embeddings,
+  Transcription,
+  Speech,
 } from "./models.js";
 
 // request param types + resource helpers
@@ -68,3 +70,5 @@ export type { ChatMessage, ChatCompletionCreateParams } from "./resources/chat.j
 export type { EvalRunCreateParams, FrontierSpec, FileInput } from "./resources/evals.js";
 export { EvalSets, EvalRuns } from "./resources/evals.js";
 export type { RerankFn, RerankOptions, EmbeddingsFn, EmbeddingsOptions } from "./resources/retrieval.js";
+export { Audio } from "./resources/audio.js";
+export type { AudioInput, TranscriptionOptions, SpeechOptions } from "./resources/audio.js";

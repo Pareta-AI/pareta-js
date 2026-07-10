@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 — 2026-07-10
+
+The Speech lanes — full parity with the Python SDK's `client.audio`:
+
+- **`pa.audio.transcriptions(audio, { language })`** — speech-to-text via
+  `POST /v1/audio/transcriptions`. `audio` is a file path (Node), raw bytes
+  (`Uint8Array`/`ArrayBuffer`/`Blob`), or `{ base64 }`. Metered per minute
+  of input audio.
+- **`pa.audio.speech(text, { voice })`** — text-to-speech via
+  `POST /v1/audio/speech`. Returns a `Speech` whose `.audio` is decoded
+  bytes (`.save(path)` writes a file in Node; browser-safe decode).
+  Metered per minute of output audio.
+- New response models `Transcription`, `Speech`.
+- Browser/edge bundles stay clean: file reads and writes use lazy
+  `node:fs` imports, base64 codecs fall back from `Buffer` to
+  `btoa`/`atob`.
+
 ## 1.1.0 — 2026-07-10
 
 The Retrieval capability lanes — the standard RAG stack on Pareta (parity
