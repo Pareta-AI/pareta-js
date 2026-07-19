@@ -20,6 +20,7 @@ import { Tasks } from "./resources/tasks.js";
 import { Evals } from "./resources/evals.js";
 import { Auto } from "./resources/auto.js";
 import { Audio } from "./resources/audio.js";
+import { Images } from "./resources/images.js";
 import { makeEmbeddings, makeRerank } from "./resources/retrieval.js";
 import type { EmbeddingsFn, RerankFn } from "./resources/retrieval.js";
 
@@ -111,6 +112,8 @@ export class Pareta implements Transport {
   readonly rerank: RerankFn;
   /** Text embeddings (the Retrieval recall lane) — `pa.embeddings(input, {inputType})`. */
   readonly embeddings: EmbeddingsFn;
+  /** Image generation — `pa.images.generate(prompt, {size, seed})`, flat price per image. */
+  readonly images: Images;
 
   constructor(options: ParetaOptions = {}) {
     if (!options.apiKey) {
@@ -139,6 +142,7 @@ export class Pareta implements Transport {
     this.audio = new Audio(this);
     this.rerank = makeRerank(this);
     this.embeddings = makeEmbeddings(this);
+    this.images = new Images(this);
   }
 
   /** Build from PARETA_API_KEY (+ optional PARETA_BASE_URL); explicit opts win. */

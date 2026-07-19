@@ -273,3 +273,27 @@ export class Speech extends BaseModel {
     return this;
   }
 }
+
+/** Image result from `images.generate(...)`. `.image` is decoded PNG bytes;
+ * `.size` is the ACTUAL delivered size. Billed flat per image (the
+ * `X-Pareta-Billed` response header carries the receipt). */
+export class ImageGeneration extends BaseModel {
+  /** The generated image, base64-decoded to raw PNG bytes. */
+  get image(): Uint8Array {
+    const b64 = this.b64Json ?? "";
+    return b64 ? base64ToBytes(b64) : new Uint8Array(0);
+  }
+  get b64Json(): string | null {
+    const data = (this.raw.data as Array<Record<string, unknown>>) ?? [];
+    return (data[0]?.b64_json as string) ?? null;
+  }
+  get size(): string | null { return this.raw.size ?? null; }
+  get model(): string | null { return this.raw.model ?? null; }
+  get created(): number | null { return this.raw.created ?? null; }
+  /** Write the decoded PNG to `path` (Node only — lazy node:fs). */
+  async save(path: string): Promise<this> {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(path, this.image);
+    return this;
+  }
+}

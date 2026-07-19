@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 — 2026-07-19
+
+- **Images lane**: `pa.images.generate(prompt, {size?, seed?})` →
+  `POST /v1/images/generations`, returning an `ImageGeneration` (`.image`
+  decoded PNG bytes, `.save(path)` in Node, `.size`, `.model`). Billed FLAT
+  per image; the `X-Pareta-Billed` header carries the receipt. Full parity
+  with Python SDK 1.2.0.
+
 ## 1.2.0 — 2026-07-10
 
 The Speech lanes — full parity with the Python SDK's `client.audio`:

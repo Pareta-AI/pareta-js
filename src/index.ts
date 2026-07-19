@@ -63,6 +63,7 @@ export {
   Embeddings,
   Transcription,
   Speech,
+  ImageGeneration,
 } from "./models.js";
 
 // request param types + resource helpers
@@ -72,3 +73,5 @@ export { EvalSets, EvalRuns } from "./resources/evals.js";
 export type { RerankFn, RerankOptions, EmbeddingsFn, EmbeddingsOptions } from "./resources/retrieval.js";
 export { Audio } from "./resources/audio.js";
 export type { AudioInput, TranscriptionOptions, SpeechOptions } from "./resources/audio.js";
+export { Images } from "./resources/images.js";
+export type { ImageGenerateOptions } from "./resources/images.js";
