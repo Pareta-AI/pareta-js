@@ -56,3 +56,37 @@ describe("images.generate", () => {
     expect(out.image.length).toBe(0);
   });
 });
+
+describe("images.edit", () => {
+  it("posts prompt + normalized image and returns a typed ImageGeneration", async () => {
+    let body: Record<string, unknown> = {};
+    const pa = makeClient((url, init) => {
+      expect(new URL(url).pathname).toBe("/v1/images/edits");
+      body = JSON.parse(init.body as string);
+      return jsonResponse(200, payload());
+    });
+    const out = await pa.images.edit(PNG_BYTES, "make the fox blue", { seed: 3 });
+    expect(body).toEqual({ prompt: "make the fox blue", image: PNG_B64, seed: 3 });
+    expect(out).toBeInstanceOf(ImageGeneration);
+    expect(Array.from(out.image)).toEqual(Array.from(PNG_BYTES));
+  });
+
+  it("passes { base64 } through untouched", async () => {
+    let body: Record<string, unknown> = {};
+    const pa = makeClient((url, init) => {
+      body = JSON.parse(init.body as string);
+      return jsonResponse(200, payload());
+    });
+    await pa.images.edit({ base64: PNG_B64 }, "x");
+    expect(body.image).toBe(PNG_B64);
+  });
+
+  it("rejects empty prompt and empty image", async () => {
+    const pa = makeClient(() => {
+      throw new Error("no request expected");
+    });
+    await expect(pa.images.edit(PNG_BYTES, "")).rejects.toThrow(ParetaError);
+    await expect(pa.images.edit(new Uint8Array(0), "x")).rejects.toThrow(ParetaError);
+    await expect(pa.images.edit({ base64: "  " }, "x")).rejects.toThrow(ParetaError);
+  });
+});

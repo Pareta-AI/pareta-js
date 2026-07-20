@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 — 2026-07-19
+
+- **Image editing**: `pa.images.edit(image, prompt, {seed?})` →
+  `POST /v1/images/edits` (instruction-only, no mask). `image` is a file
+  path (Node), bytes, a Blob, or `{ base64 }`. Billed FLAT per edit.
+  Parity with Python SDK 1.3.0.
+
 ## 1.3.0 — 2026-07-19
 
 - **Images lane**: `pa.images.generate(prompt, {size?, seed?})` →

@@ -74,4 +74,4 @@ export type { RerankFn, RerankOptions, EmbeddingsFn, EmbeddingsOptions } from ".
 export { Audio } from "./resources/audio.js";
 export type { AudioInput, TranscriptionOptions, SpeechOptions } from "./resources/audio.js";
 export { Images } from "./resources/images.js";
-export type { ImageGenerateOptions } from "./resources/images.js";
+export type { ImageGenerateOptions, ImageEditOptions, ImageInput } from "./resources/images.js";
