@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EvalRun, EvalSet, FrontierModel, ParetaError } from "../src/index.js";
+import { EvalRun, EvalSet, FrontierModel, ParetaError, ProposalResult } from "../src/index.js";
 import { jsonResponse, makeClient } from "./_helpers.js";
 
 describe("eval sets", () => {
@@ -13,6 +13,7 @@ describe("eval sets", () => {
     });
     const es = await pa.evals.sets.create({
       task: "intent-classification",
+      intent: "classify each utterance's intent",
       items: [
         { input: { text: "a" }, expected: "x" },
         { input: { text: "b" }, expected: "y" },
@@ -23,15 +24,88 @@ describe("eval sets", () => {
     expect(es.itemCount).toBe(2);
     expect(fd).toBeInstanceOf(FormData);
     expect(fd!.get("task_id")).toBe("intent-classification");
+    expect(fd!.get("intent")).toBe("classify each utterance's intent");
     const items = fd!.get("items") as Blob;
     const text = await items.text();
     expect(text).toContain('"text":"a"');
     expect(text.trim().split("\n").length).toBe(2);
   });
 
-  it("create rejects empty items", () => {
+  it("create rejects empty items", async () => {
     const pa = makeClient(() => jsonResponse(201, { eval_set: {} }));
-    expect(() => pa.evals.sets.create({ task: "t", items: [] })).toThrow(ParetaError);
+    await expect(pa.evals.sets.create({ task: "t", intent: "do it", items: [] })).rejects.toThrow(ParetaError);
+  });
+
+  it("create requires a non-empty intent (CB1 v2)", async () => {
+    const pa = makeClient(() => jsonResponse(201, { eval_set: {} }));
+    await expect(
+      pa.evals.sets.create({ task: "t", intent: "   ", items: [{ input: {}, expected_output: {} }] }),
+    ).rejects.toThrow(/intent is required/);
+  });
+
+  it("propose_contract binds; a task-less create auto-binds a clean match", async () => {
+    const posts: string[] = [];
+    const pa = makeClient((url, init) => {
+      const p = new URL(url).pathname;
+      posts.push(p);
+      if (p === "/v1/eval-sets/propose-contract") {
+        return jsonResponse(200, {
+          proposals: [{ task_id: "intent-classification", confidence: "high", evidence: { validated_n: 5, total_n: 5 } }],
+          homogeneous: true, split: null, intent: "classify each utterance",
+        });
+      }
+      if (p === "/v1/eval-sets") {
+        return jsonResponse(201, { eval_set: { id: "es_bound", task_id: "intent-classification" } });
+      }
+      return jsonResponse(200, {});
+    });
+    const items = Array.from({ length: 5 }, () => ({ input: { text: "a" }, expected_output: { label: "x" } }));
+    const result = await pa.evals.proposeContract({ items, intent: "classify each utterance" });
+    expect(result).toBeInstanceOf(ProposalResult);
+    expect(result.boundTask).toBe("intent-classification");
+    expect(result.isClean).toBe(true);
+
+    const es = await pa.evals.sets.create({ items, intent: "classify each utterance" }); // no task
+    expect(es.id).toBe("es_bound");
+    expect(posts).toEqual(["/v1/eval-sets/propose-contract", "/v1/eval-sets/propose-contract", "/v1/eval-sets"]);
+  });
+
+  it("a task-less create does NOT auto-bind the custom-eval floor offer", async () => {
+    const posted: string[] = [];
+    const pa = makeClient((url) => {
+      const p = new URL(url).pathname;
+      posted.push(p);
+      if (p === "/v1/eval-sets/propose-contract") {
+        return jsonResponse(200, {
+          proposals: [{ task_id: "custom-eval", confidence: "medium", evidence: { validated_n: 5, total_n: 5 } }],
+          homogeneous: true, split: null, intent: "grade the tone of each reply",
+          message: "no specific grading contract fits this shape",
+        });
+      }
+      return jsonResponse(201, { eval_set: { id: "es_x" } });
+    });
+    const items = Array.from({ length: 5 }, () => ({ input: { t: "a" }, expected_output: { r: "b" } }));
+    const result = await pa.evals.proposeContract({ items, intent: "grade the tone of each reply" });
+    expect(result.boundTask).toBeNull();
+    expect(result.isClean).toBe(false);
+    await expect(pa.evals.sets.create({ items, intent: "grade the tone of each reply" })).rejects.toThrow(
+      /custom-eval/,
+    );
+    expect(posted).not.toContain("/v1/eval-sets"); // only propose ran, never a create POST
+  });
+
+  it("a task-less create throws on a conflict, quoting the intent", async () => {
+    const pa = makeClient(() =>
+      jsonResponse(200, {
+        proposals: [{ task_id: "intent-classification", confidence: "low", evidence: {} }],
+        homogeneous: true, split: null, intent: "summarize each utterance",
+        conflict: { intended_task: "summarization", reasoning: "intent says summarize" },
+      }),
+    );
+    const items = Array.from({ length: 5 }, () => ({ input: { text: "a" }, expected_output: { label: "x" } }));
+    await expect(pa.evals.sets.create({ items, intent: "summarize each utterance" })).rejects.toThrow(
+      /summarize each utterance/,
+    );
   });
 
   it("list + delete", async () => {
@@ -129,6 +203,7 @@ describe("eval runs", () => {
     });
     const run = await pa.evals.runs.create({
       task: "intent-classification",
+      intent: "classify each utterance",
       items: [{ input: { text: "a" }, expected: "x" }],
       models: ["qwen-1"],
       wait: false,

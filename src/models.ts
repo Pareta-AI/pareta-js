@@ -114,6 +114,9 @@ export class EvalSet extends BaseModel {
   get name(): string | null { return this.raw.name ?? null; }
   get itemCount(): number | null { return this.raw.item_count ?? null; }
   get scoringStrategy(): string | null { return this.raw.scoring_strategy ?? null; }
+  /** The one-sentence success criterion this set was created with (CB1:
+   * DATA + INTENT). Required at create. */
+  get intent(): string | null { return this.raw.intent ?? null; }
 }
 
 /** POST /v1/eval-sets → {"eval_set": {...}}. */
@@ -123,6 +126,59 @@ export function evalSetFromCreate(raw: unknown): EvalSet {
 /** GET /v1/eval-sets → {"eval_sets": [...]}. */
 export function evalSetList(raw: unknown): EvalSet[] {
   return (((raw as Raw)?.eval_sets as Raw[]) ?? []).map((e) => new EvalSet(e));
+}
+
+/**
+ * One proposed grading contract for an uploaded dataset (a row of
+ * `ProposalResult.proposals`). `warning` is set on the custom-eval floor when
+ * the data looks extraction-shaped (judge grading is weaker there).
+ */
+export class ContractProposal extends BaseModel {
+  get taskId(): string | null { return this.raw.task_id ?? null; }
+  get confidence(): string | null { return this.raw.confidence ?? null; }
+  get evidence(): Raw { return this.raw.evidence ?? {}; }
+  get warning(): string | null { return this.raw.warning ?? null; }
+}
+
+/**
+ * The binder's answer for `evals.proposeContract` (POST
+ * /v1/eval-sets/propose-contract): which grading contract(s) fit your data
+ * under your stated intent. Nothing is persisted — confirm by passing the
+ * chosen `taskId` (or letting `create` auto-bind a clean single proposal).
+ */
+export class ProposalResult extends BaseModel {
+  get proposals(): ContractProposal[] {
+    return (this.raw.proposals ?? []).map((p: Raw) => new ContractProposal(p));
+  }
+  get homogeneous(): boolean { return Boolean(this.raw.homogeneous); }
+  get split(): Raw | null { return this.raw.split ?? null; }
+  get conflict(): Raw | null { return this.raw.conflict ?? null; }
+  get closestTask(): string | null { return this.raw.closest_task ?? null; }
+  get intent(): string | null { return this.raw.intent ?? null; }
+  get message(): string | null { return this.raw.message ?? null; }
+  /** True when the binder matched exactly ONE homogeneous SPECIFIC contract at
+   * high/medium confidence and no conflict/split — the case `create` auto-binds
+   * without a human confirming. The `custom-eval` universal FLOOR is EXCLUDED:
+   * the binder offers it only when no specific contract fits, and per the
+   * precision ladder the floor is a CHOICE — the user opts in with
+   * `task: "custom-eval"`, never a silent auto-bind. */
+  get isClean(): boolean {
+    const props = this.proposals;
+    return (this.homogeneous && this.conflict == null && this.split == null
+      && props.length === 1
+      && (props[0].confidence === "high" || props[0].confidence === "medium")
+      && Boolean(props[0].taskId)
+      && props[0].taskId !== "custom-eval");
+  }
+  /** The task `create` would auto-bind, or null if the result isn't clean. */
+  get boundTask(): string | null {
+    return this.isClean ? this.proposals[0].taskId : null;
+  }
+}
+
+/** POST /v1/eval-sets/propose-contract → the proposal object (flat). */
+export function proposalResult(raw: unknown): ProposalResult {
+  return new ProposalResult((raw as Raw) ?? {});
 }
 
 /**

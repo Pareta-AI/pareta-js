@@ -40,7 +40,9 @@ head-to-head against frontier models on your own ground truth and prices every
 contender honestly:
 
 ```ts
-const set = await pa.evals.sets.create({ task: "invoice-extraction", items: [...] });
+const set = await pa.evals.sets.create({
+  items: [...], intent: "extract vendor, total and date from each invoice",
+});
 const run = await pa.evals.runs.create({
   evalSet: set.id, models: ["auto"], frontier: ["claude-opus-4-7"], wait: true,
 });

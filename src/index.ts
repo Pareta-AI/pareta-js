@@ -57,6 +57,8 @@ export {
   EvalRun,
   EvalResult,
   EvalItemResult,
+  ContractProposal,
+  ProposalResult,
   FrontierModel,
   Rerank,
   RerankResult,

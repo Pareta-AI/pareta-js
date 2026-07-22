@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.0 — 2026-07-21
+
+**Breaking (CB1): an eval set is now DATA + INTENT.** `intent` — one sentence on
+what the model should do with each item — is REQUIRED, and `task` is now
+OPTIONAL. Parity with Python SDK 2.0.0.
+
+- `pa.evals.proposeContract({ items, intent })` — NEW. Preview which grading
+  contract fits your data (stateless). Returns a `ProposalResult`.
+- `pa.evals.sets.create({ items, intent, task? })` — with no `task`, auto-binds
+  ONLY a clean single high/medium match; a conflict/split/ambiguity throws with
+  the proposals so you pin `task`.
+- `pa.evals.runs.create({ items, intent, … })` — the inline sugar carries the
+  same requirement; `task` optional.
+- New exports: `ContractProposal`, `ProposalResult`; `EvalSet.intent`.
+
+Migration: add `intent: "…"` to every `evals.sets.create` / `runs.create`.
+
 ## 1.4.0 — 2026-07-19
 
 - **Image editing**: `pa.images.edit(image, prompt, {seed?})` →
