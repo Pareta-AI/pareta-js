@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0 — 2026-07-22
+
+**Every chat call now returns its receipt**: `completion.billedMicroUsd`,
+`completion.frontierWouldHaveCostMicroUsd`, `completion.savingsFactor`
+(frontier ÷ billed), read from the response headers the API has always sent.
+`toDict()` remains the raw server JSON. Parity with Python SDK 2.1.0.
+
+
 ## 2.0.0 — 2026-07-21
 
 **Breaking (CB1): an eval set is now DATA + INTENT.** `intent` — one sentence on

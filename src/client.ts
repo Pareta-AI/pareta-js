@@ -61,6 +61,9 @@ export interface RequestOptions {
   files?: Record<string, FilePart>;
   data?: Record<string, string>;
   cast?: (raw: unknown) => unknown;
+  /** Invoked with the response headers on success (before the body is cast) —
+   * lets a caller read receipt headers (#164: X-Pareta-Billed + counterfactual). */
+  onHeaders?: (headers: Headers) => void;
 }
 
 export interface StreamOptions {
@@ -280,6 +283,7 @@ export class Pareta implements Transport {
         break;
       }
       if (res.ok) {
+        if (opts.onHeaders) opts.onHeaders(res.headers);
         const text = await res.text();
         const raw = text ? JSON.parse(text) : {};
         return (cast ? cast(raw) : raw) as T;

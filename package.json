@@ -1,6 +1,6 @@
 {
   "name": "pareta",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "TypeScript/JavaScript client for Pareta — chat against model \"auto\", benchmark it on your own data, and watch the savings.",
   "license": "Apache-2.0",
   "author": "Pareta",

@@ -57,6 +57,36 @@ export class ChatCompletion extends BaseModel {
   get created(): number | null { return this.raw.created ?? null; }
   get choices(): Choice[] { return (this.raw.choices ?? []).map((c: Raw) => new Choice(c)); }
   get usage(): Usage { return new Usage(this.raw.usage ?? {}); }
+
+  /** #164 receipt, held OFF `.raw` so `toDict()` stays the raw server JSON. */
+  private _cost?: { billed: number | null; frontier: number | null };
+
+  /** #164: attach the per-call receipt from the response headers (billed +
+   * the frontier counterfactual, micro-USD ints). Chainable. */
+  withCost(headers?: Headers): ChatCompletion {
+    const int = (name: string): number | null => {
+      const v = headers?.get(name);
+      if (v == null) return null;
+      const n = parseInt(v, 10);
+      return Number.isNaN(n) ? null : n;
+    };
+    this._cost = {
+      billed: int("X-Pareta-Billed"),
+      frontier: int("X-Pareta-Frontier-Would-Have-Cost"),
+    };
+    return this;
+  }
+  /** What Pareta charged, micro-USD (0 on an idempotent replay); null if absent. */
+  get billedMicroUsd(): number | null { return this._cost?.billed ?? null; }
+  /** What one list-priced frontier call would have cost, micro-USD. */
+  get frontierWouldHaveCostMicroUsd(): number | null {
+    return this._cost?.frontier ?? null;
+  }
+  /** frontier / billed — e.g. 17 = 17× cheaper; null if either is missing or billed is 0. */
+  get savingsFactor(): number | null {
+    const b = this.billedMicroUsd, f = this.frontierWouldHaveCostMicroUsd;
+    return b && f && b > 0 ? Math.round((f / b) * 10) / 10 : null;
+  }
 }
 
 /** One SSE delta. `chunk.choices[0].delta.content` is the incremental text. */

@@ -43,6 +43,29 @@ describe("chat.completions.create", () => {
     expect(resp.usage.totalTokens).toBe(5);
   });
 
+  it("surfaces the per-call cost receipt from response headers (#164)", async () => {
+    const pa = makeClient(() =>
+      jsonResponse(
+        200,
+        { id: "c1", model: "auto", choices: [{ message: { content: "hi" } }], usage: { total_tokens: 6 } },
+        { "X-Pareta-Billed": "700", "X-Pareta-Frontier-Would-Have-Cost": "12000" },
+      ),
+    );
+    const resp = await pa.chat.completions.create({ model: "auto", messages: [{ role: "user", content: "hi" }] });
+    expect(resp.billedMicroUsd).toBe(700);
+    expect(resp.frontierWouldHaveCostMicroUsd).toBe(12000);
+    expect(resp.savingsFactor).toBe(Math.round((12000 / 700) * 10) / 10);
+  });
+
+  it("cost fields are null when the receipt headers are absent", async () => {
+    const pa = makeClient(() =>
+      jsonResponse(200, { choices: [{ message: { content: "hi" } }] }),
+    );
+    const resp = await pa.chat.completions.create({ model: "auto", messages: [{ role: "user", content: "x" }] });
+    expect(resp.billedMicroUsd).toBeNull();
+    expect(resp.savingsFactor).toBeNull();
+  });
+
   it("stream sets stream:true and yields deltas", async () => {
     let sentStream: unknown;
     const pa = makeClient((_url, init) => {

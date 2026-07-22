@@ -62,10 +62,15 @@ export class Completions {
         cast: (raw) => new ChatCompletionChunk(raw as Record<string, unknown>),
       });
     }
-    return this.client.request<ChatCompletion>("POST", PATH, {
-      body,
-      cast: (raw) => new ChatCompletion(raw as Record<string, unknown>),
-    });
+    // #164: capture the receipt headers and attach the cost to the completion.
+    let headers: Headers | undefined;
+    return this.client
+      .request<ChatCompletion>("POST", PATH, {
+        body,
+        cast: (raw) => new ChatCompletion(raw as Record<string, unknown>),
+        onHeaders: (h) => { headers = h; },
+      })
+      .then((completion) => completion.withCost(headers));
   }
 }
 
