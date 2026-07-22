@@ -145,8 +145,8 @@ export class EvalSet extends BaseModel {
   get itemCount(): number | null { return this.raw.item_count ?? null; }
   get scoringStrategy(): string | null { return this.raw.scoring_strategy ?? null; }
   /** The one-sentence success criterion this set was created with (CB1:
-   * DATA + INTENT). Required at create. */
-  get intent(): string | null { return this.raw.intent ?? null; }
+   * DATA + PROMPT). Required at create. */
+  get prompt(): string | null { return this.raw.prompt ?? null; }
 }
 
 /** POST /v1/eval-sets → {"eval_set": {...}}. */
@@ -159,9 +159,9 @@ export function evalSetList(raw: unknown): EvalSet[] {
 }
 
 /**
- * One proposed grading contract for an uploaded dataset (a row of
- * `ProposalResult.proposals`). `warning` is set on the custom-eval floor when
- * the data looks extraction-shaped (judge grading is weaker there).
+ * One proposed way to score an uploaded dataset (a row of
+ * `ProposalResult.proposals`). `warning` is set on a "custom-eval" proposal
+ * when the data looks extraction-shaped (judge grading is weaker there).
  */
 export class ContractProposal extends BaseModel {
   get taskId(): string | null { return this.raw.task_id ?? null; }
@@ -171,10 +171,10 @@ export class ContractProposal extends BaseModel {
 }
 
 /**
- * The binder's answer for `evals.proposeContract` (POST
- * /v1/eval-sets/propose-contract): which grading contract(s) fit your data
- * under your stated intent. Nothing is persisted — confirm by passing the
- * chosen `taskId` (or letting `create` auto-bind a clean single proposal).
+ * Pareta's answer for `evals.proposeContract` (POST
+ * /v1/eval-sets/propose-contract): how your data could be scored under your
+ * stated prompt. Nothing is persisted — confirm by passing the chosen
+ * `taskId` (or letting a task-less `create` use a clean single proposal).
  */
 export class ProposalResult extends BaseModel {
   get proposals(): ContractProposal[] {
@@ -184,14 +184,14 @@ export class ProposalResult extends BaseModel {
   get split(): Raw | null { return this.raw.split ?? null; }
   get conflict(): Raw | null { return this.raw.conflict ?? null; }
   get closestTask(): string | null { return this.raw.closest_task ?? null; }
-  get intent(): string | null { return this.raw.intent ?? null; }
+  get prompt(): string | null { return this.raw.prompt ?? null; }
   get message(): string | null { return this.raw.message ?? null; }
-  /** True when the binder matched exactly ONE homogeneous SPECIFIC contract at
-   * high/medium confidence and no conflict/split — the case `create` auto-binds
-   * without a human confirming. The `custom-eval` universal FLOOR is EXCLUDED:
-   * the binder offers it only when no specific contract fits, and per the
-   * precision ladder the floor is a CHOICE — the user opts in with
-   * `task: "custom-eval"`, never a silent auto-bind. */
+  /** True when exactly ONE homogeneous SPECIFIC task matched at high/medium
+   * confidence with no conflict/split — the case a task-less `create`
+   * proceeds with, no human confirming. `custom-eval` (a judge panel grading
+   * each answer against your prompt) is EXCLUDED: it is offered only when
+   * nothing specific fits, and using it is the user's CHOICE — opt in with
+   * `task: "custom-eval"`, never silently. */
   get isClean(): boolean {
     const props = this.proposals;
     return (this.homogeneous && this.conflict == null && this.split == null
@@ -200,7 +200,8 @@ export class ProposalResult extends BaseModel {
       && Boolean(props[0].taskId)
       && props[0].taskId !== "custom-eval");
   }
-  /** The task `create` would auto-bind, or null if the result isn't clean. */
+  /** How a task-less `create` would score this set, or null if the result
+   * isn't clean (pass `task` yourself). */
   get boundTask(): string | null {
     return this.isClean ? this.proposals[0].taskId : null;
   }

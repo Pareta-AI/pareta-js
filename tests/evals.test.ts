@@ -13,7 +13,7 @@ describe("eval sets", () => {
     });
     const es = await pa.evals.sets.create({
       task: "intent-classification",
-      intent: "classify each utterance's intent",
+      prompt: "classify each utterance's intent",
       items: [
         { input: { text: "a" }, expected: "x" },
         { input: { text: "b" }, expected: "y" },
@@ -24,7 +24,7 @@ describe("eval sets", () => {
     expect(es.itemCount).toBe(2);
     expect(fd).toBeInstanceOf(FormData);
     expect(fd!.get("task_id")).toBe("intent-classification");
-    expect(fd!.get("intent")).toBe("classify each utterance's intent");
+    expect(fd!.get("prompt")).toBe("classify each utterance's intent");
     const items = fd!.get("items") as Blob;
     const text = await items.text();
     expect(text).toContain('"text":"a"');
@@ -33,14 +33,14 @@ describe("eval sets", () => {
 
   it("create rejects empty items", async () => {
     const pa = makeClient(() => jsonResponse(201, { eval_set: {} }));
-    await expect(pa.evals.sets.create({ task: "t", intent: "do it", items: [] })).rejects.toThrow(ParetaError);
+    await expect(pa.evals.sets.create({ task: "t", prompt: "do it", items: [] })).rejects.toThrow(ParetaError);
   });
 
-  it("create requires a non-empty intent (CB1 v2)", async () => {
+  it("create requires a non-empty prompt (v3)", async () => {
     const pa = makeClient(() => jsonResponse(201, { eval_set: {} }));
     await expect(
-      pa.evals.sets.create({ task: "t", intent: "   ", items: [{ input: {}, expected_output: {} }] }),
-    ).rejects.toThrow(/intent is required/);
+      pa.evals.sets.create({ task: "t", prompt: "   ", items: [{ input: {}, expected_output: {} }] }),
+    ).rejects.toThrow(/prompt is required/);
   });
 
   it("propose_contract binds; a task-less create auto-binds a clean match", async () => {
@@ -51,7 +51,7 @@ describe("eval sets", () => {
       if (p === "/v1/eval-sets/propose-contract") {
         return jsonResponse(200, {
           proposals: [{ task_id: "intent-classification", confidence: "high", evidence: { validated_n: 5, total_n: 5 } }],
-          homogeneous: true, split: null, intent: "classify each utterance",
+          homogeneous: true, split: null, prompt: "classify each utterance",
         });
       }
       if (p === "/v1/eval-sets") {
@@ -60,12 +60,12 @@ describe("eval sets", () => {
       return jsonResponse(200, {});
     });
     const items = Array.from({ length: 5 }, () => ({ input: { text: "a" }, expected_output: { label: "x" } }));
-    const result = await pa.evals.proposeContract({ items, intent: "classify each utterance" });
+    const result = await pa.evals.proposeContract({ items, prompt: "classify each utterance" });
     expect(result).toBeInstanceOf(ProposalResult);
     expect(result.boundTask).toBe("intent-classification");
     expect(result.isClean).toBe(true);
 
-    const es = await pa.evals.sets.create({ items, intent: "classify each utterance" }); // no task
+    const es = await pa.evals.sets.create({ items, prompt: "classify each utterance" }); // no task
     expect(es.id).toBe("es_bound");
     expect(posts).toEqual(["/v1/eval-sets/propose-contract", "/v1/eval-sets/propose-contract", "/v1/eval-sets"]);
   });
@@ -78,32 +78,32 @@ describe("eval sets", () => {
       if (p === "/v1/eval-sets/propose-contract") {
         return jsonResponse(200, {
           proposals: [{ task_id: "custom-eval", confidence: "medium", evidence: { validated_n: 5, total_n: 5 } }],
-          homogeneous: true, split: null, intent: "grade the tone of each reply",
+          homogeneous: true, split: null, prompt: "grade the tone of each reply",
           message: "no specific grading contract fits this shape",
         });
       }
       return jsonResponse(201, { eval_set: { id: "es_x" } });
     });
     const items = Array.from({ length: 5 }, () => ({ input: { t: "a" }, expected_output: { r: "b" } }));
-    const result = await pa.evals.proposeContract({ items, intent: "grade the tone of each reply" });
+    const result = await pa.evals.proposeContract({ items, prompt: "grade the tone of each reply" });
     expect(result.boundTask).toBeNull();
     expect(result.isClean).toBe(false);
-    await expect(pa.evals.sets.create({ items, intent: "grade the tone of each reply" })).rejects.toThrow(
+    await expect(pa.evals.sets.create({ items, prompt: "grade the tone of each reply" })).rejects.toThrow(
       /custom-eval/,
     );
     expect(posted).not.toContain("/v1/eval-sets"); // only propose ran, never a create POST
   });
 
-  it("a task-less create throws on a conflict, quoting the intent", async () => {
+  it("a task-less create throws on a conflict, quoting the prompt", async () => {
     const pa = makeClient(() =>
       jsonResponse(200, {
         proposals: [{ task_id: "intent-classification", confidence: "low", evidence: {} }],
-        homogeneous: true, split: null, intent: "summarize each utterance",
-        conflict: { intended_task: "summarization", reasoning: "intent says summarize" },
+        homogeneous: true, split: null, prompt: "summarize each utterance",
+        conflict: { intended_task: "summarization", reasoning: "prompt says summarize" },
       }),
     );
     const items = Array.from({ length: 5 }, () => ({ input: { text: "a" }, expected_output: { label: "x" } }));
-    await expect(pa.evals.sets.create({ items, intent: "summarize each utterance" })).rejects.toThrow(
+    await expect(pa.evals.sets.create({ items, prompt: "summarize each utterance" })).rejects.toThrow(
       /summarize each utterance/,
     );
   });
@@ -203,7 +203,7 @@ describe("eval runs", () => {
     });
     const run = await pa.evals.runs.create({
       task: "intent-classification",
-      intent: "classify each utterance",
+      prompt: "classify each utterance",
       items: [{ input: { text: "a" }, expected: "x" }],
       models: ["qwen-1"],
       wait: false,

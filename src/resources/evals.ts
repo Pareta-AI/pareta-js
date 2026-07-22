@@ -1,16 +1,17 @@
 /**
  * `client.evals` — eval sets + runs (bring-your-own-data evaluation).
  *
- *   // An eval set is DATA + INTENT (v2, breaking): intent REQUIRED, task
- *   // OPTIONAL — the binder resolves your intent + the data's shape.
- *   await pa.evals.proposeContract({ items: [...], intent: "…" });   // preview
- *   const set = await pa.evals.sets.create({ items: [...], intent: "…" });  // auto-binds
+ *   // An eval set is DATA + PROMPT (v3, breaking): prompt REQUIRED, task
+ *   // OPTIONAL — Pareta works out how to score the results from your
+ *   // prompt + the data's shape.
+ *   await pa.evals.proposeContract({ items: [...], prompt: "…" });   // preview
+ *   const set = await pa.evals.sets.create({ items: [...], prompt: "…" });  // clean match used automatically
  *   await pa.evals.sets.uploadDocument(set.id, file, { idx, fieldName });   // blob tasks
  *   const run = await pa.evals.runs.create({ evalSet: set.id, models: [...], wait: true });
- *   // or, in one call: runs.create({ items, intent: "…", models, wait: true })
+ *   // or, in one call: runs.create({ items, prompt: "…", models, wait: true })
  *
- * `create` (and the inline `runs.create` sugar) require `intent`; with no
- * `task` they call `proposeContract` and auto-bind ONLY a clean single
+ * `create` (and the inline `runs.create` sugar) require `prompt`; with no
+ * `task` they call `proposeContract` and accept ONLY a clean single
  * high/medium match — a conflict, split, or ambiguity throws with the
  * proposals so you pin `task`.
  *
@@ -94,18 +95,18 @@ async function toBlob(
 }
 
 /**
- * CB1 (v2 breaking): an eval set is DATA + INTENT — the same rows can mean
- * different tasks, and only the caller knows which. Enforced client-side so the
- * error is actionable before the request (the server also 400s an intent-less
- * create, which is how pre-v2 SDKs surface the change).
+ * CB1 (v2, renamed in v3): an eval set is DATA + PROMPT — the same rows can
+ * mean different tasks, and only the caller knows which. Enforced client-side
+ * so the error is actionable before the request (the server also 400s a
+ * prompt-less create, which is how pre-v3 SDKs surface the change).
  */
-function requireIntent(intent: string | undefined): string {
-  const s = (intent ?? "").trim();
+function requirePrompt(prompt: string | undefined): string {
+  const s = (prompt ?? "").trim();
   if (!s) {
     throw new ParetaError(
-      'intent is required: one sentence describing what the model should do ' +
+      'prompt is required: one sentence describing what the model should do ' +
       'with each item (e.g. "extract vendor, total and date from each ' +
-      'invoice"). Pass intent to evals.create / proposeContract.');
+      'invoice"). Pass prompt to evals.create / proposeContract.');
   }
   return s.slice(0, 500);
 }
@@ -113,38 +114,38 @@ function requireIntent(intent: string | undefined): string {
 function itemsJsonl(
   task: string,
   items: Array<Record<string, unknown>>,
-  intent: string,
+  prompt: string,
   name?: string,
 ): { files: Record<string, { filename: string; content: string; contentType: string }>; data: Record<string, string> } {
   if (!items || items.length === 0) throw new ParetaError("items is required and must be non-empty");
   const jsonl = items.map((it) => JSON.stringify(it)).join("\n");
   return {
     files: { items: { filename: `items.${task}.jsonl`, content: jsonl, contentType: "application/jsonl" } },
-    data: { task_id: task, intent, name: name || `sdk eval set (${items.length} items)` },
+    data: { task_id: task, prompt, name: name || `sdk eval set (${items.length} items)` },
   };
 }
 
 function proposeMultipart(
   items: Array<Record<string, unknown>>,
-  intent: string,
+  prompt: string,
 ): { files: Record<string, { filename: string; content: string; contentType: string }>; data: Record<string, string> } {
   if (!items || items.length === 0) throw new ParetaError("items is required and must be non-empty");
   const jsonl = items.map((it) => JSON.stringify(it)).join("\n");
   return {
     files: { items: { filename: "items.jsonl", content: jsonl, contentType: "application/jsonl" } },
-    data: { intent },
+    data: { prompt },
   };
 }
 
 /** Turn a non-clean propose result into an actionable create-time error. */
 function bindError(result: ProposalResult): ParetaError {
-  const intent = result.intent ?? "";
+  const prompt = result.prompt ?? "";
   if (result.conflict) {
     const c = result.conflict;
     return new ParetaError(
-      `intent '${intent}' describes a different job than the data's shape ` +
+      `prompt '${prompt}' describes a different job than the data's shape ` +
       `supports (reads as '${c.intended_task}': ${c.reasoning}). Pass a task ` +
-      "to pin a contract, or revise the intent.");
+      "to pin the task, or revise the prompt.");
   }
   if (result.split) {
     const s = result.split;
@@ -152,24 +153,24 @@ function bindError(result: ProposalResult): ParetaError {
       `the dataset looks MIXED — ${s.validated_n}/${s.total_n} items fit ` +
       `'${s.closest_task}', the rest a different shape. Split the set or pass a task.`);
   }
-  // Zero-fit: the binder offers the custom-eval universal FLOOR (judged
-  // win-rate vs the anchor). Per the precision ladder that's the user's
-  // CHOICE — surface it explicitly rather than silently binding it.
+  // Zero-fit: only "custom-eval" is on offer — a judge panel grades each
+  // answer against the stated prompt. Opting in is the user's CHOICE —
+  // surface it explicitly rather than picking it silently. (CB1 spec §4.)
   const props = result.proposals;
   if (props.length === 1 && props[0].taskId === "custom-eval") {
     const warn = props[0].warning ? ` (${props[0].warning})` : "";
     return new ParetaError(
-      `no specific grading contract fits this data for intent '${intent}'. The ` +
-      "custom-eval universal floor is available — it grades by judged win-rate " +
-      `vs the frontier anchor.${warn} Pass task: "custom-eval" to use it, or ` +
-      "revise the data/intent for a specific contract.");
+      `no ready-made scorer fits this data for prompt '${prompt}'. A judge ` +
+      "panel can grade each answer against what you asked for (win rate vs " +
+      `gpt-5.5) — pass task: "custom-eval" to use it.${warn} Or revise the ` +
+      "data/prompt so a specific task fits.");
   }
   const options = props.map((p) => p.taskId).filter(Boolean);
   if (options.length === 0 && result.closestTask) options.push(result.closestTask);
   const hint = options.length ? ` Candidates: ${options.join(", ")}.` : "";
   return new ParetaError(
-    `could not confidently bind a grading contract for intent '${intent}'.${hint} ` +
-    "Pass a task to pin one, or inspect evals.proposeContract({ items, intent }).");
+    `couldn't work out how to score this for prompt '${prompt}'.${hint} ` +
+    "Pass a task to choose yourself, or inspect evals.proposeContract({ items, prompt }).");
 }
 
 function mergeCandidates(models: string[], frontierIds: string[]): string[] {
@@ -195,33 +196,33 @@ export class EvalSets {
   constructor(private readonly client: Transport) {}
 
   /**
-   * Persist an eval set from your rows. `intent` is REQUIRED (v2): one sentence
-   * on what the model should do with each item. `task` is OPTIONAL — omit it and
-   * the binder resolves your intent + the data's shape to a grading contract
-   * (auto-binds a clean single match; throws with the proposals otherwise). Pass
-   * `task` to pin one explicitly.
+   * Persist an eval set from your rows. `prompt` is REQUIRED (v3): one sentence
+   * on what the model should do with each item. `task` is OPTIONAL — omit it
+   * and Pareta works out how to score the results from your prompt + the
+   * data's shape (a clean single match is used; anything ambiguous throws with
+   * the proposals). Pass `task` to pin one explicitly.
    */
   async create(params: {
     items: Array<Record<string, unknown>>;
-    intent: string;
+    prompt: string;
     task?: string;
     name?: string;
   }): Promise<EvalSet> {
-    const intent = requireIntent(params.intent);
+    const prompt = requirePrompt(params.prompt);
     let task = params.task;
     if (task == null) {
-      const proposal = await this.proposeContract(params.items, intent);
+      const proposal = await this.proposeContract(params.items, prompt);
       task = proposal.boundTask ?? undefined;
       if (task == null) throw bindError(proposal);
     }
-    const { files, data } = itemsJsonl(task, params.items, intent, params.name);
+    const { files, data } = itemsJsonl(task, params.items, prompt, params.name);
     return this.client.request<EvalSet>("POST", BASE, { files, data, cast: evalSetFromCreate });
   }
 
-  /** Internal: the binder call `create` uses when no task is pinned. Public on
+  /** Internal: the propose call `create` uses when no task is pinned. Public on
    * `Evals` as `proposeContract`; kept here so `sets.create` can reach it. */
-  proposeContract(items: Array<Record<string, unknown>>, intent: string): Promise<ProposalResult> {
-    const { files, data } = proposeMultipart(items, requireIntent(intent));
+  proposeContract(items: Array<Record<string, unknown>>, prompt: string): Promise<ProposalResult> {
+    const { files, data } = proposeMultipart(items, requirePrompt(prompt));
     return this.client.request<ProposalResult>("POST", PROPOSE, { files, data, cast: proposalResult });
   }
 
@@ -280,7 +281,7 @@ export interface EvalRunCreateParams {
   evalSet?: string;
   task?: string;
   items?: Array<Record<string, unknown>>;
-  intent?: string;
+  prompt?: string;
   models: string[];
   frontier?: FrontierSpec;
   name?: string;
@@ -315,10 +316,10 @@ export class EvalRuns {
     let evalSet = params.evalSet;
     if (evalSet == null) {
       if (!params.items) {
-        throw new ParetaError("pass evalSet: <id>, or items (+ intent) to create one");
+        throw new ParetaError("pass evalSet: <id>, or items (+ prompt) to create one");
       }
       evalSet = (await this.sets.create({
-        items: params.items, intent: params.intent as string,
+        items: params.items, prompt: params.prompt as string,
         task: params.task, name: params.name,
       })).id ?? undefined;
     }
@@ -367,13 +368,14 @@ export class Evals {
   private readonly client: Transport;
 
   /**
-   * Which grading contract fits your data under your stated `intent`? Stateless
+   * How would your data be scored under your stated `prompt`? Stateless
    * discovery — nothing is persisted. Returns a ProposalResult (ranked
-   * proposals, the auto-bind decision, conflict/split reporting). `sets.create`
-   * calls this under the hood; use it directly to preview the binding first.
+   * proposals, the task a task-less create would use, conflict/split
+   * reporting). `sets.create` calls this under the hood; use it directly to
+   * preview the scoring first.
    */
-  proposeContract(params: { items: Array<Record<string, unknown>>; intent: string }): Promise<ProposalResult> {
-    return this.sets.proposeContract(params.items, params.intent);
+  proposeContract(params: { items: Array<Record<string, unknown>>; prompt: string }): Promise<ProposalResult> {
+    return this.sets.proposeContract(params.items, params.prompt);
   }
 
   /**

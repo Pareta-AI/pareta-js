@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.0.0 — 2026-07-22
+
+**Breaking: the eval parameter `intent` is renamed `prompt`.** Same meaning —
+one sentence on what the model should do with each item — new name everywhere:
+
+- `pa.evals.sets.create({ items, prompt, task? })`
+- `pa.evals.runs.create({ items, prompt, … })` (the inline sugar)
+- `pa.evals.proposeContract({ items, prompt })`
+- `EvalSet.prompt` and `ProposalResult.prompt` replace the `.intent` getters
+  (the server now returns the JSON key `prompt`).
+
+Parity with Python SDK 3.0.0. No alias: 2.x calls using `intent` get an
+actionable 400 from the server.
+
+Migration: rename `intent:` → `prompt:` in every `evals.sets.create` /
+`runs.create` / `proposeContract` call, and `.intent` → `.prompt` on returned
+eval-set / proposal objects.
+
 ## 2.1.0 — 2026-07-22
 
 **Every chat call now returns its receipt**: `completion.billedMicroUsd`,

@@ -41,7 +41,7 @@ contender honestly:
 
 ```ts
 const set = await pa.evals.sets.create({
-  items: [...], intent: "extract vendor, total and date from each invoice",
+  items: [...], prompt: "extract vendor, total and date from each invoice",
 });
 const run = await pa.evals.runs.create({
   evalSet: set.id, models: ["auto"], frontier: ["claude-opus-4-7"], wait: true,
