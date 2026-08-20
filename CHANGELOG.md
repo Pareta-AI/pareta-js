@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.2 — 2026-08-20
+
+- `Task.goldSchema` + `Task.outputSchemaRole` (parity with Python 3.0.4):
+  scorer-owned tasks serve their machine gold contract explicitly.
+
 ## 3.0.1 — 2026-08-20
 
 - **`EvalResult.exactMatch`** — classification-scored runs carry the

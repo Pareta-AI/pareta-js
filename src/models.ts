@@ -110,6 +110,11 @@ export class Task extends BaseModel {
   get id(): string | null { return this.raw.id ?? null; }
   get defaultScorer(): string | null { return this.raw.default_scorer ?? null; }
   get hasBlobInput(): boolean { return Boolean(this.raw.has_blob_input); }
+  /** The MACHINE gold contract expected_output must satisfy, for tasks whose
+   *  scorer owns a rich gold shape (contract tasks). Null means outputSchema
+   *  IS the gold shape — check outputSchemaRole ("summary" vs "gold"). */
+  get goldSchema(): Record<string, unknown> | null { return this.raw.gold_schema ?? null; }
+  get outputSchemaRole(): string | null { return this.raw.output_schema_role ?? null; }
 }
 
 /** GET /v1/tasks → {"tasks": [...]}. */
