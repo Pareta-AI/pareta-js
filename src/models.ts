@@ -238,6 +238,10 @@ export class EvalResult extends BaseModel {
   get meanCostMicroUsd(): number | null { return this.raw.mean_cost_micro_usd ?? null; }
   get nSucceeded(): number | null { return this.raw.n_succeeded ?? null; }
   get errorCount(): number | null { return this.raw.error_count ?? null; }
+  /** Exact-match rate (0-100) for classification-scored runs — the honest
+   *  small-sample number (the macro-F1 headline can diverge at tiny n).
+   *  Null for other scorers and pre-field runs. */
+  get exactMatch(): number | null { return this.raw.exact_match ?? null; }
   /** Per-item rows (idx/score/prediction/error); empty when not persisted. */
   get perItem(): EvalItemResult[] {
     return (this.raw.per_item ?? []).map((it: Raw) => new EvalItemResult(it));

@@ -15,8 +15,7 @@
  * Inference is OpenAI-compatible, so you can equally point the `openai` SDK at
  * `baseURL` + your `pareta_sk_` key with model "auto". The SDK's unique value
  * is everything around that call: evals on your own data (benchmark "auto"
- * against frontier models), auto metrics, and `tasks.match` for discovering
- * what Pareta can do.
+ * against frontier models) and auto metrics — what your live traffic saves.
  */
 
 export { Pareta } from "./client.js";

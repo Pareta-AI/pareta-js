@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.1 — 2026-08-20
+
+- **`EvalResult.exactMatch`** — classification-scored runs carry the
+  per-item exact-match rate (0–100) alongside the macro-F1 headline; the
+  honest small-sample number (`null` for other scorers / older runs).
+
 ## 3.0.0 — 2026-07-22
 
 **Breaking: the eval parameter `intent` is renamed `prompt`.** Same meaning —

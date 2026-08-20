@@ -1,8 +1,8 @@
 /**
- * `client.tasks` — the grading-contract directory for evals. A task names how
- * a dataset is scored (row shape + scorer); inference never takes one. `match`
- * maps a plain-English description of your dataset to the contract that
- * grades it — feed the matched task id into `evals.runs.create(task=...)`.
+ * `client.tasks` backs the eval surface. A task names how a dataset is scored
+ * (row shape + scorer); inference never takes one. `match` takes a
+ * plain-English description of your dataset and tells you how rows like yours
+ * will be scored — feed the returned task id into `evals.runs.create(task=...)`.
  */
 
 import type { Transport } from "../client.js";
@@ -26,7 +26,7 @@ export class Tasks {
     });
   }
 
-  /** Free-text intent → ranked candidate tasks (the Step-0 backend matcher). */
+  /** Free-text description → ranked candidate tasks. */
   match(query: string, opts: { topK?: number } = {}): Promise<TaskMatch> {
     if (!query || !query.trim()) throw new ParetaError("query is required");
     return this.client.request<TaskMatch>("POST", `${BASE}/match`, {

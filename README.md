@@ -73,9 +73,9 @@ const res = await client.chat.completions.create({ model: "auto", messages: [...
 This SDK's unique value is everything AROUND that call — evals on your data,
 auto metrics, and the benchmark catalog.
 
-Discovery (`pa.tasks.match`) tells you whether Pareta has a benchmark-proven
-specialist lane for your workload — describe the task in free text and get
-ranked matching tasks back.
+`pa.tasks.match` takes a plain-English description of a job and tells you how
+rows like yours will be scored — it returns the `task` id `pa.evals` needs to
+prove `"auto"` on your own data.
 
 ## Auth
 
